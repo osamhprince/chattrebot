@@ -1,12 +1,6 @@
 <?php
-
-/**
- * بوت تلجرام مطور - نسخة مصححة
- */
-
-$API_KEY = '8539850843:AAFuOcsI8meIsm9DLd6tSHn5DYxrj4mLT98'; // توكن التلجرام
-$GEMINI_KEY = 'AIzaSyAryqUo-RBQUZCRMan697sirjNrwFvG83o'; // مفتاح Gemini AI
-
+$API_KEY = '8539850843:AAFuOcsI8meIsm9DLd6tSHn5DYxrj4mLT98';
+$GEMINI_KEY = 'AIzaSyAryqUo-RBQUZCRMan697sirjNrwFvG83o';
 function bot($method, $datas = []) {
     global $API_KEY;
     $url = "https://api.telegram.org/bot" . $API_KEY . "/" . $method;
@@ -18,69 +12,48 @@ function bot($method, $datas = []) {
     $res = curl_exec($ch);
     return json_decode($res);
 }
-
-/**
- * دالة التواصل مع Gemini AI
- */
 function askGemini($prompt) {
     global $GEMINI_KEY;
     $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . $GEMINI_KEY;
-
     $data = [
         "contents" => [
             ["parts" => [["text" => $prompt]]]
         ]
     ];
-
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json')); // تم تصحيح الفاصلة هنا
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-
     $result = json_decode($response, true);
-    return $result['candidates'][0]['content']['parts'][0]['text'] ?? "عذرًا، واجهت مشكلة في التفكير.";
+    
+    if (isset($result['candidates'][0]['content']['parts'][0]['text'])) {
+        return $result['candidates'][0]['content']['parts'][0]['text'];
+    }
+    
+    // إذا فشل، أرسل لنا تفاصيل الخطأ
+    if (isset($result['error']['message'])) {
+        return "خطأ من قوقل: " . $result['error']['message'];
+    }
+    return "خطأ غير معروف. كود الاستجابة: " . $http_code . "\nالرد الخام: " . substr($response, 0, 100);
 }
-
-// استقبال التحديثات
 $update = json_decode(file_get_contents('php://input'));
-
 if (isset($update->message)) {
     $message = $update->message;
     $chat_id = $message->chat->id;
     $text    = $message->text;
-    $first_name = $message->from->first_name;
-
     if ($text == '/start') {
-        $keyboard = [
-            'inline_keyboard' => [
-                [
-                    ['text' => "قناة المطور 📢", 'url' => "https://t.me/dev_osamh"],
-                    ['text' => "حساب المطور 👨‍💻", 'url' => "https://t.me/dev_osamh"]
-                ]
-            ]
-        ];
-
         bot('sendMessage', [
             'chat_id' => $chat_id,
-            'text' => "أهلاً بك يا $first_name! أنا الآن مدمج بذكاء اصطناعي (Gemini). أرسل لي أي شيء وسأرد عليك فوراً! 🤖",
-            'reply_markup' => json_encode($keyboard)
+            'text' => "أنا جاهز! أرسل لي أي رسالة وسأحاول الرد باستخدام Gemini المستكشف للأخطاء."
         ]);
-    } 
-    elseif (!empty($text)) {
-        bot('sendChatAction', [
-            'chat_id' => $chat_id,
-            'action' => 'typing'
-        ]);
-
+    } elseif (!empty($text)) {
+        bot('sendChatAction', ['chat_id' => $chat_id, 'action' => 'typing']);
         $ai_response = askGemini($text);
-
-        bot('sendMessage', [
-            'chat_id' => $chat_id,
-            'text' => $ai_response
-        ]);
+        bot('sendMessage', ['chat_id' => $chat_id, 'text' => $ai_response]);
     }
 }
