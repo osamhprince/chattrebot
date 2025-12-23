@@ -1,7 +1,7 @@
 <?php
 
 /**
- * بوت تلجرام - الإصدار المستقر المحدث V3
+ * بوت تلجرام - الإصدار الحديث (ديسمبر 2025)
  */
 
 $API_KEY = '8539850843:AAFuOcsI8meIsm9DLd6tSHn5DYxrj4mLT98'; 
@@ -22,8 +22,8 @@ function bot($method, $datas = []) {
 function askGemini($prompt) {
     global $GEMINI_KEY;
     
-    // استخدام v1 (النسخة المستقرة) بدلاً من v1beta
-    $url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=" . $GEMINI_KEY;
+    // استخدام أحدث طراز متوفر في نهاية 2025 (Gemini 2.0 Flash)
+    $url = "https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=" . $GEMINI_KEY;
 
     $data = [
         "contents" => [
@@ -43,15 +43,30 @@ function askGemini($prompt) {
 
     $result = json_decode($response, true);
 
+    // التحقق من النجاح
     if (isset($result['candidates'][0]['content']['parts'][0]['text'])) {
         return $result['candidates'][0]['content']['parts'][0]['text'];
     }
 
-    // إذا فشل مجدداً، سنطبع تفاصيل دقيقة جداً لنعرف أين المشكلة
-    $error_msg = $result['error']['message'] ?? 'غير معروف';
-    $version_info = "API Version: v1 | Model: gemini-1.5-flash";
-    
-    return "للأسف فشل الرد.\nالسبب: $error_msg\nالمعلومات: $version_info\nكود الحالة: $http_code";
+    // محاولة احتياطية مع الموديل الأقدم في حال لم يتفعل 2.0 في حسابك بعد
+    if ($http_code != 200) {
+        $url_v3 = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=" . $GEMINI_KEY;
+        $ch2 = curl_init($url_v3);
+        curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch2, CURLOPT_POST, true);
+        curl_setopt($ch2, CURLOPT_POSTFIELDS, json_encode($data));
+        curl_setopt($ch2, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
+        curl_setopt($ch2, CURLOPT_SSL_VERIFYPEER, false);
+        $resp2 = curl_exec($ch2);
+        curl_close($ch2);
+        $res2 = json_decode($resp2, true);
+        if (isset($res2['candidates'][0]['content']['parts'][0]['text'])) {
+            return $res2['candidates'][0]['content']['parts'][0]['text'];
+        }
+    }
+
+    $msg = $result['error']['message'] ?? 'خطأ غير معروف';
+    return "لا يزال هناك تعارض في الموديل لدى قوقل.\nالبيان: $msg\nكود الحالة: $http_code";
 }
 
 $update = json_decode(file_get_contents('php://input'));
@@ -64,7 +79,7 @@ if (isset($update->message)) {
     if ($text == '/start') {
         bot('sendMessage', [
             'chat_id' => $chat_id,
-            'text' => "تم التحديث للنسخة المستقرة V3 ✅\nأنا الآن استخدم إصدار v1 المستقر. أرسل أي شيء!"
+            'text' => "تم الترقية إلى Gemini 2.0 الحديث 🚀\nجرب التحدث معي الآن بالذكاء الاصطناعي المتطور."
         ]);
     } 
     elseif (!empty($text)) {
