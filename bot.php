@@ -1,7 +1,7 @@
 <?php
 
 /**
- * بوت تلجرام مطور - النسخة النهائية المستقرة
+ * بوت تلجرام - نسخة الإصدار المستقر (V2)
  */
 
 $API_KEY = '8539850843:AAFuOcsI8meIsm9DLd6tSHn5DYxrj4mLT98'; 
@@ -21,7 +21,7 @@ function bot($method, $datas = []) {
 
 function askGemini($prompt) {
     global $GEMINI_KEY;
-    // تم التغيير إلى v1 لضمان الاستقرار
+    // تم تغيير الرابط هنا إلى النسخة 1 المستقرة تماماً
     $url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=" . $GEMINI_KEY;
 
     $data = [
@@ -37,10 +37,17 @@ function askGemini($prompt) {
     curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
     $result = json_decode($response, true);
-    return $result['candidates'][0]['content']['parts'][0]['text'] ?? "عذرًا، واجهت مشكلة في التفكير.";
+
+    if (isset($result['candidates'][0]['content']['parts'][0]['text'])) {
+        return $result['candidates'][0]['content']['parts'][0]['text'];
+    }
+
+    // إذا فشل، سيعطينا تفاصيل الرابط والخطأ
+    return "خطأ في الاتصال. الحالة: $http_code. الرد: " . ($result['error']['message'] ?? 'غير معروف');
 }
 
 $update = json_decode(file_get_contents('php://input'));
@@ -49,28 +56,16 @@ if (isset($update->message)) {
     $message = $update->message;
     $chat_id = $message->chat->id;
     $text    = $message->text;
-    $first_name = $message->from->first_name;
 
     if ($text == '/start') {
-        $keyboard = [
-            'inline_keyboard' => [[
-                ['text' => "قناة المطور 📢", 'url' => "https://t.me/dev_osamh"],
-                ['text' => "حساب المطور 👨‍💻", 'url' => "https://t.me/dev_osamh"]
-            ]]
-        ];
-
         bot('sendMessage', [
             'chat_id' => $chat_id,
-            'text' => "أهلاً بك يا $first_name! أنا الآن أعمل بشكل مستقر. جرب محادثتي الآن! 🤖",
-            'reply_markup' => json_encode($keyboard)
+            'text' => "تم تحديث البوت إلى النسخة المستقرة (V2) ✅\nأرسل أي رسالة الآن للتجربة."
         ]);
     } 
     elseif (!empty($text)) {
         bot('sendChatAction', ['chat_id' => $chat_id, 'action' => 'typing']);
         $ai_response = askGemini($text);
-        bot('sendMessage', [
-            'chat_id' => $chat_id, 
-            'text' => $ai_response
-        ]);
+        bot('sendMessage', ['chat_id' => $chat_id, 'text' => $ai_response]);
     }
 }
