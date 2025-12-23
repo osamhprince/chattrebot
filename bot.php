@@ -1,7 +1,7 @@
 <?php
 
 /**
- * بوت تلجرام - نسخة Gemini المجانية المستقرة
+ * بوت تلجرام - الإصدار المستقر المحدث V3
  */
 
 $API_KEY = '8539850843:AAFuOcsI8meIsm9DLd6tSHn5DYxrj4mLT98'; 
@@ -22,8 +22,8 @@ function bot($method, $datas = []) {
 function askGemini($prompt) {
     global $GEMINI_KEY;
     
-    // استخدام نموذج gemini-1.5-flash-latest عبر رابط v1beta لضمان التوافق
-    $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=" . $GEMINI_KEY;
+    // استخدام v1 (النسخة المستقرة) بدلاً من v1beta
+    $url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=" . $GEMINI_KEY;
 
     $data = [
         "contents" => [
@@ -38,31 +38,20 @@ function askGemini($prompt) {
     curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
     $result = json_decode($response, true);
 
-    // التحقق من وجود رد
     if (isset($result['candidates'][0]['content']['parts'][0]['text'])) {
         return $result['candidates'][0]['content']['parts'][0]['text'];
     }
 
-    // محاولة ثانية بنموذج gemini-pro إذا فشل الأول (كلاهما مجاني)
-    if (!isset($result['candidates'][0]['content']['parts'][0]['text'])) {
-         $url_alt = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=" . $GEMINI_KEY;
-         $ch = curl_init($url_alt);
-         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-         curl_setopt($ch, CURLOPT_POST, true);
-         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-         curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
-         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-         $response = curl_exec($ch);
-         curl_close($ch);
-         $result = json_decode($response, true);
-         return $result['candidates'][0]['content']['parts'][0]['text'] ?? "عذرًا، لم يتمكن Gemini المجاني من الرد حالياً.";
-    }
-
-    return "عذرًا، واجهت مشكلة في التفكير.";
+    // إذا فشل مجدداً، سنطبع تفاصيل دقيقة جداً لنعرف أين المشكلة
+    $error_msg = $result['error']['message'] ?? 'غير معروف';
+    $version_info = "API Version: v1 | Model: gemini-1.5-flash";
+    
+    return "للأسف فشل الرد.\nالسبب: $error_msg\nالمعلومات: $version_info\nكود الحالة: $http_code";
 }
 
 $update = json_decode(file_get_contents('php://input'));
@@ -75,7 +64,7 @@ if (isset($update->message)) {
     if ($text == '/start') {
         bot('sendMessage', [
             'chat_id' => $chat_id,
-            'text' => "أهلاً بك! أنا أعمل الآن بنظام التبديل التلقائي بين نماذج Gemini المجانية 🤖 جرب مراسلتي."
+            'text' => "تم التحديث للنسخة المستقرة V3 ✅\nأنا الآن استخدم إصدار v1 المستقر. أرسل أي شيء!"
         ]);
     } 
     elseif (!empty($text)) {
