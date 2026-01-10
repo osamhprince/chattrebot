@@ -1,7 +1,7 @@
 <?php
 
 $API_KEY = '8122167214:AAHyYd8JjPNs3AhZTCqoqxCIq5xC1QVlxX0'; // توكن تليجرام
-$GEMINI_KEY = getenv('AIzaSyAE1m6PyQDtK6R7hVu-8NF58SD_3HvVFtQ');
+$GEMINI_KEY = getenv('AIzaSyC4Yzzo0Qc8ScPT-2Bv9xdXw564vyXH6xM');
  // مفتاح Gemini API
 
 // 2. دالة إرسال الرسائل لتليجرام
